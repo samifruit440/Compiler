@@ -1,0 +1,1 @@
+return (integer? 42);
