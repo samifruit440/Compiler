@@ -1,6 +1,7 @@
     .text
     .globl _start
 _start:
+    movl $0x100000, %esi  # Heap pointer
     movl $16, %eax
     movl %eax, -4(%esp)
     movl $12, %eax

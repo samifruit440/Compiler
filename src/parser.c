@@ -66,17 +66,111 @@ static Expr* parse_primary(void) {
     } else if (current_token.type == TOK_EMPTY_LIST) {
         advance();
         return expr_empty_list();
+    } else if (current_token.type == TOK_IDENTIFIER) {
+        /* Variable reference */
+        char *name = current_token.identifier;
+        advance();
+        return expr_variable(name);
     } else if (current_token.type == TOK_LPAREN) {
         advance();
         
-        /* Check if it's a procedure call (identifier followed by args) */
+        /* Check for binary operators as function calls: +, -, *, =, <, > */
+        if (current_token.type == TOK_PLUS) {
+            advance();
+            Expr* arg1 = parse_expr();
+            Expr* arg2 = parse_expr();
+            expect(TOK_RPAREN);
+            return expr_binary_prim(PRIM_PLUS, arg1, arg2);
+        } else if (current_token.type == TOK_MINUS) {
+            advance();
+            Expr* arg1 = parse_expr();
+            Expr* arg2 = parse_expr();
+            expect(TOK_RPAREN);
+            return expr_binary_prim(PRIM_MINUS, arg1, arg2);
+        } else if (current_token.type == TOK_STAR) {
+            advance();
+            Expr* arg1 = parse_expr();
+            Expr* arg2 = parse_expr();
+            expect(TOK_RPAREN);
+            return expr_binary_prim(PRIM_MULTIPLY, arg1, arg2);
+        } else if (current_token.type == TOK_EQUALS) {
+            advance();
+            Expr* arg1 = parse_expr();
+            Expr* arg2 = parse_expr();
+            expect(TOK_RPAREN);
+            return expr_binary_prim(PRIM_EQUALS, arg1, arg2);
+        } else if (current_token.type == TOK_LESS) {
+            advance();
+            Expr* arg1 = parse_expr();
+            Expr* arg2 = parse_expr();
+            expect(TOK_RPAREN);
+            return expr_binary_prim(PRIM_LESS, arg1, arg2);
+        } else if (current_token.type == TOK_GREATER) {
+            advance();
+            Expr* arg1 = parse_expr();
+            Expr* arg2 = parse_expr();
+            expect(TOK_RPAREN);
+            return expr_binary_prim(PRIM_GREATER, arg1, arg2);
+        }
+        
+        /* Check if it's a special form or procedure call (identifier-based) */
         if (current_token.type == TOK_IDENTIFIER) {
             char *name = current_token.identifier;
+            /* Make a copy of name since current_token will be overwritten */
+            char *name_copy = malloc(strlen(name) + 1);
+            strcpy(name_copy, name);
             advance();
+            
+            /* Check for let expression: (let (var value) body) */
+            if (strcmp(name_copy, "let") == 0) {
+                expect(TOK_LPAREN);
+                if (current_token.type != TOK_IDENTIFIER) {
+                    fprintf(stderr, "Error: Expected variable name in let binding\n");
+                    exit(1);
+                }
+                const char *var = current_token.identifier;  /* Don't copy, expr_let will copy it */
+                advance();
+                Expr *init = parse_expr();
+                expect(TOK_RPAREN);
+                Expr *body = parse_expr();
+                expect(TOK_RPAREN);
+                return expr_let(var, init, body);
+            }
+            
+            /* Check for if expression: (if test consequent alternate) */
+            if (strcmp(name_copy, "if") == 0) {
+                Expr *test = parse_expr();
+                Expr *consequent = parse_expr();
+                Expr *alternate = parse_expr();
+                expect(TOK_RPAREN);
+                return expr_if(test, consequent, alternate);
+            }
+            
+            /* Check for cons: (cons car cdr) */
+            if (strcmp(name_copy, "cons") == 0) {
+                Expr *car_expr = parse_expr();
+                Expr *cdr_expr = parse_expr();
+                expect(TOK_RPAREN);
+                return expr_cons(car_expr, cdr_expr);
+            }
+            
+            /* Check for car: (car pair) */
+            if (strcmp(name_copy, "car") == 0) {
+                Expr *pair = parse_expr();
+                expect(TOK_RPAREN);
+                return expr_car(pair);
+            }
+            
+            /* Check for cdr: (cdr pair) */
+            if (strcmp(name_copy, "cdr") == 0) {
+                Expr *pair = parse_expr();
+                expect(TOK_RPAREN);
+                return expr_cdr(pair);
+            }
             
             /* Try to parse as unary primitive */
             UnaryPrimType unary;
-            if (try_parse_unary_prim(name, &unary)) {
+            if (try_parse_unary_prim(name_copy, &unary)) {
                 Expr* arg = parse_expr();
                 expect(TOK_RPAREN);
                 return expr_unary_prim(unary, arg);
@@ -84,7 +178,7 @@ static Expr* parse_primary(void) {
             
             /* Try to parse as binary primitive */
             BinaryPrimType binary;
-            if (try_parse_binary_prim(name, &binary)) {
+            if (try_parse_binary_prim(name_copy, &binary)) {
                 Expr* arg1 = parse_expr();
                 Expr* arg2 = parse_expr();
                 expect(TOK_RPAREN);
@@ -92,7 +186,7 @@ static Expr* parse_primary(void) {
             }
             
             /* Unknown function */
-            fprintf(stderr, "Error: Unknown primitive: %s\n", name);
+            fprintf(stderr, "Error: Unknown primitive: %s\n", name_copy);
             exit(1);
         } else {
             /* Just a grouped expression */

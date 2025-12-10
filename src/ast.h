@@ -10,6 +10,12 @@ typedef enum {
     EXPR_EMPTY_LIST,
     EXPR_UNARY_PRIM,
     EXPR_BINARY_PRIM,
+    EXPR_VARIABLE,
+    EXPR_LET,
+    EXPR_IF,
+    EXPR_CONS,
+    EXPR_CAR,
+    EXPR_CDR,
 } ExprType;
 
 typedef enum {
@@ -63,6 +69,35 @@ typedef struct {
     Expr *operand2;
 } BinaryPrimExpr;
 
+typedef struct {
+    char *name;  /* Variable name */
+} VariableExpr;
+
+typedef struct {
+    char *name;        /* Variable name being bound */
+    Expr *init;        /* Initial value expression */
+    Expr *body;        /* Body expression with variable in scope */
+} LetExpr;
+
+typedef struct {
+    Expr *test;        /* Test expression */
+    Expr *consequent;  /* Then branch */
+    Expr *alternate;   /* Else branch */
+} IfExpr;
+
+typedef struct {
+    Expr *car_expr;    /* car (first element) */
+    Expr *cdr_expr;    /* cdr (rest/second element) */
+} ConsExpr;
+
+typedef struct {
+    Expr *pair;        /* Pair to extract from */
+} CarExpr;
+
+typedef struct {
+    Expr *pair;        /* Pair to extract from */
+} CdrExpr;
+
 typedef struct Expr {
     ExprType type;
     union {
@@ -71,6 +106,12 @@ typedef struct Expr {
         CharacterExpr character;
         UnaryPrimExpr unary_prim;
         BinaryPrimExpr binary_prim;
+        VariableExpr variable;
+        LetExpr let_expr;
+        IfExpr if_expr;
+        ConsExpr cons;
+        CarExpr car;
+        CdrExpr cdr;
     } data;
 } Expr;
 
@@ -81,6 +122,12 @@ Expr* expr_character(char value);
 Expr* expr_empty_list(void);
 Expr* expr_unary_prim(UnaryPrimType op, Expr *operand);
 Expr* expr_binary_prim(BinaryPrimType op, Expr *operand1, Expr *operand2);
+Expr* expr_variable(const char *name);
+Expr* expr_let(const char *name, Expr *init, Expr *body);
+Expr* expr_if(Expr *test, Expr *consequent, Expr *alternate);
+Expr* expr_cons(Expr *car_expr, Expr *cdr_expr);
+Expr* expr_car(Expr *pair);
+Expr* expr_cdr(Expr *pair);
 
 /* Memory management */
 void expr_free(Expr *expr);

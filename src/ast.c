@@ -1,5 +1,6 @@
 #include "ast.h"
 #include <stdlib.h>
+#include <string.h>
 
 Expr* expr_fixnum(int value) {
     Expr *e = malloc(sizeof(Expr));
@@ -45,6 +46,55 @@ Expr* expr_binary_prim(BinaryPrimType op, Expr *operand1, Expr *operand2) {
     return e;
 }
 
+Expr* expr_variable(const char *name) {
+    Expr *e = malloc(sizeof(Expr));
+    e->type = EXPR_VARIABLE;
+    e->data.variable.name = malloc(strlen(name) + 1);
+    strcpy(e->data.variable.name, name);
+    return e;
+}
+
+Expr* expr_let(const char *name, Expr *init, Expr *body) {
+    Expr *e = malloc(sizeof(Expr));
+    e->type = EXPR_LET;
+    e->data.let_expr.name = malloc(strlen(name) + 1);
+    strcpy(e->data.let_expr.name, name);
+    e->data.let_expr.init = init;
+    e->data.let_expr.body = body;
+    return e;
+}
+
+Expr* expr_if(Expr *test, Expr *consequent, Expr *alternate) {
+    Expr *e = malloc(sizeof(Expr));
+    e->type = EXPR_IF;
+    e->data.if_expr.test = test;
+    e->data.if_expr.consequent = consequent;
+    e->data.if_expr.alternate = alternate;
+    return e;
+}
+
+Expr* expr_cons(Expr *car_expr, Expr *cdr_expr) {
+    Expr *e = malloc(sizeof(Expr));
+    e->type = EXPR_CONS;
+    e->data.cons.car_expr = car_expr;
+    e->data.cons.cdr_expr = cdr_expr;
+    return e;
+}
+
+Expr* expr_car(Expr *pair) {
+    Expr *e = malloc(sizeof(Expr));
+    e->type = EXPR_CAR;
+    e->data.car.pair = pair;
+    return e;
+}
+
+Expr* expr_cdr(Expr *pair) {
+    Expr *e = malloc(sizeof(Expr));
+    e->type = EXPR_CDR;
+    e->data.cdr.pair = pair;
+    return e;
+}
+
 void expr_free(Expr *expr) {
     if (!expr) return;
     
@@ -60,6 +110,29 @@ void expr_free(Expr *expr) {
         case EXPR_BINARY_PRIM:
             expr_free(expr->data.binary_prim.operand1);
             expr_free(expr->data.binary_prim.operand2);
+            break;
+        case EXPR_VARIABLE:
+            free(expr->data.variable.name);
+            break;
+        case EXPR_LET:
+            free(expr->data.let_expr.name);
+            expr_free(expr->data.let_expr.init);
+            expr_free(expr->data.let_expr.body);
+            break;
+        case EXPR_IF:
+            expr_free(expr->data.if_expr.test);
+            expr_free(expr->data.if_expr.consequent);
+            expr_free(expr->data.if_expr.alternate);
+            break;
+        case EXPR_CONS:
+            expr_free(expr->data.cons.car_expr);
+            expr_free(expr->data.cons.cdr_expr);
+            break;
+        case EXPR_CAR:
+            expr_free(expr->data.car.pair);
+            break;
+        case EXPR_CDR:
+            expr_free(expr->data.cdr.pair);
             break;
     }
     free(expr);

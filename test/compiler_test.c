@@ -97,11 +97,37 @@ int main() {
     /* Create test output directory */
     system("mkdir -p test_output");
     
+    /* ========================================
+       SECTION 1: Immediate Values
+       ======================================== */
+    printf("--- Section 1: Immediate Values ---\n");
+    
     /* Test integers - fixnums are tagged: value << 2 */
     test_expr("0", 0 << 2, "fixnum");           /* 0 */
     test_expr("1", 1 << 2, "fixnum");           /* 4 */
     test_expr("42", 42 << 2, "fixnum");         /* 168 */
     test_expr("127", 127 << 2, "fixnum");       /* 508 */
+    
+    /* Test booleans */
+    /* #t is tagged as 0x3F = 63 */
+    test_expr("#t", 63, "boolean");
+    /* #f is tagged as 0x1F = 31 */
+    test_expr("#f", 31, "boolean");
+    
+    /* Test characters */
+    /* #\A is char_tag (0x0F) | (65 << 8) */
+    test_expr("#\\A", char_tag | (65 << 8), "character");
+    /* #\space is char_tag (0x0F) | (32 << 8) */
+    test_expr("#\\space", char_tag | (32 << 8), "character");
+    
+    /* Test empty list */
+    /* () is empty_list_tag = 0x2F = 47 */
+    test_expr("()", 47, "empty list");
+    
+    /* ========================================
+       SECTION 2: Arithmetic Operators
+       ======================================== */
+    printf("\n--- Section 2: Arithmetic Operators ---\n");
     
     /* Test addition */
     test_expr("10 + 5", 15 << 2, "fixnum");     /* 60 */
@@ -115,29 +141,69 @@ int main() {
     test_expr("6 * 7", 42 << 2, "fixnum");      /* 168 */
     test_expr("10 * 10", 100 << 2, "fixnum");   /* 400 */
     
-    /* Test grouping */
+    /* Test operator precedence and grouping */
+    test_expr("2 + 3 * 4", 14 << 2, "fixnum");  /* 56 (multiplication first) */
     test_expr("(10 + 5) * 2", 30 << 2, "fixnum");   /* 120 */
     test_expr("2 * (10 + 5)", 30 << 2, "fixnum");   /* 120 */
-    
-    /* Test mixed expressions */
-    test_expr("2 + 3 * 4", 14 << 2, "fixnum");  /* 56 */
     test_expr("10 + 20 - 5", 25 << 2, "fixnum"); /* 100 */
     
-    /* Test immediates: booleans */
-    /* #t is tagged as 0x3F = 63 */
-    test_expr("#t", 63, "boolean");
-    /* #f is tagged as 0x1F = 31 */
-    test_expr("#f", 31, "boolean");
+    /* ========================================
+       SECTION 3: Let Expressions (New Feature)
+       ======================================== */
+    printf("\n--- Section 3: Let Expressions ---\n");
     
-    /* Test immediates: characters */
-    /* #\A is char_tag (0x0F) | (65 << 8) */
-    test_expr("#\\A", char_tag | (65 << 8), "character");
-    /* #\space is char_tag (0x0F) | (32 << 8) */
-    test_expr("#\\space", char_tag | (32 << 8), "character");
+    /* Simple let binding */
+    test_expr("(let (x 5) x)", 5 << 2, "fixnum");  /* 20 */
+    test_expr("(let (n 42) n)", 42 << 2, "fixnum"); /* 168 */
     
-    /* Test immediates: empty list */
-    /* () is empty_list_tag = 0x2F = 47 */
-    test_expr("()", 47, "empty list");
+    /* Let with arithmetic */
+    test_expr("(let (x 5) (+ x 3))", 8 << 2, "fixnum");     /* 32 */
+    test_expr("(let (x 10) (* x 2))", 20 << 2, "fixnum");   /* 80 */
+    test_expr("(let (x 7) (- x 2))", 5 << 2, "fixnum");     /* 20 */
+    
+    /* Let with infix arithmetic inside let body */
+    test_expr("(let (x 3) x + 5)", 8 << 2, "fixnum");  /* 32 */
+    
+    /* ========================================
+       SECTION 4: If Expressions (New Feature)
+       ======================================== */
+    printf("\n--- Section 4: If Expressions ---\n");
+    
+    /* If with boolean literals */
+    test_expr("(if #t 10 5)", 10 << 2, "fixnum");  /* 40 (true branch) */
+    test_expr("(if #f 10 5)", 5 << 2, "fixnum");   /* 20 (false branch) */
+    
+    /* If with nested ifs */
+    test_expr("(if #t (if #t 10 5) 0)", 10 << 2, "fixnum");  /* 40 */
+    test_expr("(if #t (if #f 10 5) 0)", 5 << 2, "fixnum");   /* 20 */
+    
+    /* ========================================
+       SECTION 5: Heap Operations
+       cons/car/cdr - WORKING! (finally)
+       ======================================== */
+    printf("\n--- Section 5: Heap Operations (cons/car/cdr) ---\n");
+    
+    /* Simple cons and car */
+    test_expr("(car (cons 5 10))", 5 << 2, "fixnum");  /* 20 */
+    
+    /* Simple cons and cdr */
+    test_expr("(cdr (cons 5 10))", 10 << 2, "fixnum"); /* 40 */
+    
+    /* Cons with different values */
+    test_expr("(car (cons 42 99))", 42 << 2, "fixnum");  /* 168 */
+    test_expr("(cdr (cons 42 99))", 99 << 2, "fixnum");  /* 396 */
+    
+    /* Cons with arithmetic */
+    test_expr("(car (cons (+ 3 4) 10))", 7 << 2, "fixnum");  /* 28 */
+    test_expr("(cdr (cons 5 (* 2 5)))", 10 << 2, "fixnum");  /* 40 */
+    
+    /* Cons with let bindings */
+    test_expr("(let (x 5) (car (cons x 10)))", 5 << 2, "fixnum");   /* 20 */
+    test_expr("(let (x 5) (cdr (cons x 10)))", 10 << 2, "fixnum");  /* 40 */
+    
+    /* Cons with if expressions */
+    test_expr("(car (cons (if #t 5 10) 20))", 5 << 2, "fixnum");   /* 20 */
+    test_expr("(cdr (cons (if #f 5 10) 20))", 20 << 2, "fixnum");  /* 80 */
     
     printf("\n========================================\n");
     printf("Tests: %d passed, %d failed, %d total\n", 
