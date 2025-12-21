@@ -1,0 +1,22 @@
+# Build artifacts
+build/
+out/
+test_output/
+
+# Object files and executables
+*.o
+*.s
+*.exe
+*.out
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Compiler specific outputs
+tokens.txt
+output.s
+program
